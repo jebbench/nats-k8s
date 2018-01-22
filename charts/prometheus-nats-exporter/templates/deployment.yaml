@@ -1,0 +1,54 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ template "prometheus-nats-exporter.fullname" . }}
+  labels:
+    app: {{ template "prometheus-nats-exporter.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "prometheus-nats-exporter.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+{{- if .Values.metrics.connz }}
+            - "-connz"
+{{- end }}
+{{- if .Values.metrics.routez }}
+            - "-routez"
+{{- end }}
+{{- if .Values.metrics.subz }}
+            - "-subz"
+{{- end }}
+{{- if .Values.metrics.varz }}
+            - "-varz"
+{{- end }}
+            - "--port"
+            - {{ .Values.service.internalPort | quote }}
+            - {{ .Values.natsUrl | quote }}
+
+          ports:
+            - containerPort: {{ .Values.service.internalPort }}
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: {{ .Values.service.internalPort }}
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: {{ .Values.service.internalPort }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+    {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+    {{- end }}
